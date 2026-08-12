@@ -6,46 +6,65 @@ from telegram.ext import (
     CommandHandler,
     ContextTypes,
 )
-from weather import get_station_data, stations
+
+from weather import (
+    get_station_data,
+    get_station_id,
+    stations,
+)
+
 from formatter import format_station
 
 load_dotenv()
 
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
-TOKEN = os.getenv("TELEGRAM_TOKEN")
 
+async def start(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    message = (
+        "🇷🇸 <b>Serbian Local Meteo Assistant</b> 🪂\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "Get current weather data from small\n"
+        "local meteorological stations.\n\n"
+        "<b>Commands:</b>\n\n"
+        "/stations - list available stations\n"
+        "/station NAME - get station weather\n"
+        "Example:\n"
+        "/station Fruška gora\n"
+        "/station fruska gora"
+    )
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🪂 <b>Local Meteo Bot</b>\n\n"
-        "Available commands:\n\n"
-        "/stations - list all stations\n"
-        "/station ID - get station weather\n"
-        "/rajac - get Rajac weather",
+        message,
         parse_mode="HTML",
     )
 
 
-async def station(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
+async def station(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
     if not context.args:
         await update.message.reply_text(
-            "Usage:\n"
-            "/station 33"
+            "❌ Please specify a station.\n\n"
+            "Example:\n"
+            "/station Fruška gora\n\n"
+            "Use /stations to see all available stations."
         )
         return
 
-    try:
-        station_id = int(context.args[0])
-    except ValueError:
-        await update.message.reply_text(
-            "❌ Station ID must be a number."
-        )
-        return
+    station_name = " ".join(context.args)
 
-    if station_id not in stations and station_id != 25:
+    station_id = get_station_id(station_name)
+
+    if station_id is None:
         await update.message.reply_text(
-            "❌ Unknown station."
+            f"❌ Station not found: <b>{station_name}</b>\n\n"
+            "Use /stations to see available stations.",
+            parse_mode="HTML",
         )
         return
 
@@ -61,12 +80,16 @@ async def station(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         await update.message.reply_text(
-            f"❌ Error getting weather data:\n{e}"
+            "❌ Could not retrieve weather data.\n\n"
+            f"<code>{e}</code>",
+            parse_mode="HTML",
         )
 
 
-async def rajac(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
+async def rajac(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
     try:
         data = await get_station_data(25)
 
@@ -79,46 +102,31 @@ async def rajac(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         await update.message.reply_text(
-            f"❌ Error getting Rajac data:\n{e}"
+            "❌ Could not retrieve Rajac data.\n\n"
+            f"<code>{e}</code>",
+            parse_mode="HTML",
         )
 
 
-async def all_stations(
+async def station_list(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
+    message = (
+        "🪂 <b>AVAILABLE STATIONS</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+    )
 
-    message = "🪂 <b>LOCAL METEO</b>\n"
-    message += "━━━━━━━━━━━━━━━━━━\n\n"
+    for station_id, name in stations.items():
+        message += (
+            f"📍 <b>{name}</b>\n"
+            f"/station {name}\n\n"
+        )
 
-    all_ids = list(stations.keys()) + [25]
-
-    for station_id in all_ids:
-
-        try:
-            data = await get_station_data(station_id)
-
-            c = data["conditions"]
-            w = data["wind"]
-
-            message += (
-                f"📍 <b>{data['station']}</b>\n"
-                f"🌡️ {c['temperature']}°C  "
-                f"💨 {w['speed']} km/h\n"
-                f"💨 Gusts: {w['gust']} km/h\n"
-                f"🌧️ Rain: "
-            )
-
-            if station_id == 25:
-                message += f"{data['rain']['rate']} mm/h\n\n"
-            else:
-                message += f"{data['rain']['current']} mm\n\n"
-
-        except Exception:
-            message += (
-                f"📍 <b>{stations.get(station_id, 'Rajac')}</b>\n"
-                f"❌ Data unavailable\n\n"
-            )
+    message += (
+        "📍 <b>Rajac</b>\n"
+        "/station Rajac\n"
+    )
 
     await update.message.reply_text(
         message,
@@ -127,7 +135,6 @@ async def all_stations(
 
 
 def main():
-
     if not TOKEN:
         raise RuntimeError(
             "TELEGRAM_BOT_TOKEN environment variable is not set."
@@ -135,12 +142,23 @@ def main():
 
     app = Application.builder().token(TOKEN).build()
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("station", station))
-    app.add_handler(CommandHandler("stations", all_stations))
-    app.add_handler(CommandHandler("rajac", rajac))
+    app.add_handler(
+        CommandHandler("start", start)
+    )
 
-    print("Telegram bot started...")
+    app.add_handler(
+        CommandHandler("stations", station_list)
+    )
+
+    app.add_handler(
+        CommandHandler("station", station)
+    )
+
+    app.add_handler(
+        CommandHandler("rajac", rajac)
+    )
+
+    print("🪂 Telegram bot started...")
 
     app.run_polling()
 

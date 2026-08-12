@@ -16,12 +16,13 @@ def format_standard_station(data):
         f"Humidity: {c['humidity']}%\n"
         f"Pressure: {c['pressure']} hPa\n"
         f"Dew point: {c['dew_point']}°C\n"
-        f"Cloud base: {c['cloud_base']} m\n\n"
+        f"☁️ Cloud base: {c['cloud_base']} m\n\n"
 
         f"💨 <b>WIND</b>\n"
-        f"Current: {w['speed']} km/h {w['direction']}\n"
-        f"Gusts: {w['gust']} km/h\n"
-        f"Maximum: {w['max']} km/h\n\n"
+        f"Speed: {w['speed_ms']} m/s ({w['speed']} km/h)\n"
+        f"Direction: {w['direction']} ({w['angle']}°)\n"
+        f"Gusts: {w['gust_ms']} m/s ({w['gust']} km/h)\n"
+        f"Maximum: {w['max_ms']} m/s ({w['max']} km/h)\n\n"
 
         f"📊 <b>AVERAGES</b>\n"
         f"15 min: {w['avg_15']['speed']} km/h "
@@ -64,10 +65,10 @@ def format_rajac(data):
         f"Pressure trend: {c['bar_trend']}\n\n"
 
         f"💨 <b>WIND</b>\n"
-        f"Speed: {w['speed']} km/h\n"
+        f"Speed: {w['speed_ms']} m/s ({w['speed']} km/h)\n"
         f"Direction: {w['angle']}°\n"
-        f"Gusts: {w['gust']} km/h\n"
-        f"Gust change: {w['gust_delta_10min']:+} km/h\n\n"
+        f"Gusts: {w['gust_ms']} m/s ({w['gust']} km/h)\n"
+        f"Gust change: {w['gust_delta_10min_ms']:+} m/s\n\n"
 
         f"🌧️ <b>RAIN</b>\n"
         f"Rate: {r['rate']} mm/h\n"
