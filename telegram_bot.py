@@ -18,21 +18,51 @@ from formatter import format_station
 load_dotenv()
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+BOT_USERNAME = os.getenv("BOT_USERNAME")
 
 
 async def start(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
+    # Handle clickable station links
+    if context.args:
+        argument = context.args[0]
+
+        if argument.startswith("station_"):
+            try:
+                station_id = int(
+                    argument.replace("station_", "")
+                )
+
+                data = await get_station_data(station_id)
+                message = format_station(data)
+
+                await update.message.reply_text(
+                    message,
+                    parse_mode="HTML",
+                )
+                return
+
+            except Exception as e:
+                await update.message.reply_text(
+                    "❌ Could not retrieve weather data.\n"
+                    "      Station is not available.😕\n\n"
+                    f"<code>*{e}</code>",
+                    parse_mode="HTML",
+                )
+                return
+
+    # Normal /start message
     message = (
         "🇷🇸 <b>Serbian Local Meteo Assistant</b> 🪂\n"
-        "━━━━━━━━━━━━━━━━━━\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         "Get current weather data from small\n"
         "local meteorological stations.\n\n"
         "<b>Commands:</b>\n\n"
         "/stations - list available stations\n"
-        "/station NAME - get station weather\n"
-        "Example:\n"
+        "/station NAME - get station weather\n\n"
+        "<b>Example:</b>\n"
         "/station Fruška gora\n"
         "/station fruska gora"
     )
@@ -80,8 +110,9 @@ async def station(
 
     except Exception as e:
         await update.message.reply_text(
-            "❌ Could not retrieve weather data.\n\n"
-            f"<code>{e}</code>",
+            "❌ Could not retrieve weather data.\n"
+            "      Station is not available.😕\n\n"
+            f"<code>*{e}</code>",
             parse_mode="HTML",
         )
 
@@ -102,8 +133,9 @@ async def rajac(
 
     except Exception as e:
         await update.message.reply_text(
-            "❌ Could not retrieve Rajac data.\n\n"
-            f"<code>{e}</code>",
+            "❌ Could not retrieve Rajac data.\n"
+            "      Station is not available.😕\n\n"
+            f"<code>*{e}</code>",
             parse_mode="HTML",
         )
 
@@ -114,23 +146,25 @@ async def station_list(
 ):
     message = (
         "🪂 <b>AVAILABLE STATIONS</b>\n"
-        "━━━━━━━━━━━━━━━━━━\n\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "Click on location to get data.\n\n"
     )
 
     for station_id, name in stations.items():
         message += (
-            f"📍 <b>{name}</b>\n"
-            f"/station {name}\n\n"
+            f'📍 <a href="https://t.me/{BOT_USERNAME}'
+            f'?start=station_{station_id}">{name}</a>\n\n'
         )
 
     message += (
-        "📍 <b>Rajac</b>\n"
-        "/station Rajac\n"
+        f'📍 <a href="https://t.me/{BOT_USERNAME}'
+        f'?start=station_25">Rajac</a>\n'
     )
 
     await update.message.reply_text(
         message,
         parse_mode="HTML",
+        disable_web_page_preview=True,
     )
 
 
@@ -142,21 +176,10 @@ def main():
 
     app = Application.builder().token(TOKEN).build()
 
-    app.add_handler(
-        CommandHandler("start", start)
-    )
-
-    app.add_handler(
-        CommandHandler("stations", station_list)
-    )
-
-    app.add_handler(
-        CommandHandler("station", station)
-    )
-
-    app.add_handler(
-        CommandHandler("rajac", rajac)
-    )
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("stations", station_list))
+    app.add_handler(CommandHandler("station", station))
+    app.add_handler(CommandHandler("rajac", rajac))
 
     print("🪂 Telegram bot started...")
 
