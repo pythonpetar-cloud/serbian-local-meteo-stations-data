@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 import os
+import time
 from dotenv import load_dotenv
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
+    CallbackQueryHandler,
     ContextTypes,
 )
 
@@ -19,6 +23,16 @@ load_dotenv()
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 BOT_USERNAME = os.getenv("BOT_USERNAME")
+
+REFRESH_COOLDOWN_SECONDS = 60
+_last_refresh: dict[tuple[int, int], float] = {}  # (chat_id, station_id) -> timestamp
+
+
+def refresh_keyboard(station_id: int) -> InlineKeyboardMarkup:
+    """Build the inline 'Refresh' button attached under every station message."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔄 Refresh", callback_data=f"refresh_{station_id}")]
+    ])
 
 
 async def start(
@@ -41,6 +55,7 @@ async def start(
                 await update.message.reply_text(
                     message,
                     parse_mode="HTML",
+                    reply_markup=refresh_keyboard(station_id),
                 )
                 return
 
@@ -106,6 +121,7 @@ async def station(
         await update.message.reply_text(
             message,
             parse_mode="HTML",
+            reply_markup=refresh_keyboard(station_id),
         )
 
     except Exception as e:
@@ -129,6 +145,7 @@ async def rajac(
         await update.message.reply_text(
             message,
             parse_mode="HTML",
+            reply_markup=refresh_keyboard(25),
         )
 
     except Exception as e:
@@ -138,6 +155,48 @@ async def rajac(
             f"<code>*{e}</code>",
             parse_mode="HTML",
         )
+
+
+async def refresh_station(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    """Handle taps on the Refresh button -- re-fetch the same station's
+    data and update the existing message in place, rather than sending a
+    new one. Rate-limited per (chat, station) so rapid taps don't hammer
+    the upstream weather APIs."""
+    query = update.callback_query
+    station_id = int(query.data.replace("refresh_", ""))
+    chat_id = update.effective_chat.id
+
+    key = (chat_id, station_id)
+    now = time.time()
+    elapsed = now - _last_refresh.get(key, 0)
+
+    if elapsed < REFRESH_COOLDOWN_SECONDS:
+        wait_left = int(REFRESH_COOLDOWN_SECONDS - elapsed)
+        await query.answer(
+            f"⏳ Please wait {wait_left}s before refreshing again.",
+            show_alert=False,
+        )
+        return
+
+    try:
+        data = await get_station_data(station_id)
+        message = format_station(data)
+
+        await query.edit_message_text(
+            message,
+            parse_mode="HTML",
+            reply_markup=refresh_keyboard(station_id),
+        )
+        _last_refresh[key] = now
+        await query.answer("Updated")
+
+    except Exception as e:
+        # Message body stays as-is if the refresh fails -- just show a
+        # transient alert rather than replacing good data with an error.
+        await query.answer(f"Could not refresh: {e}", show_alert=True)
 
 
 async def station_list(
@@ -180,6 +239,7 @@ def main():
     app.add_handler(CommandHandler("stations", station_list))
     app.add_handler(CommandHandler("station", station))
     app.add_handler(CommandHandler("rajac", rajac))
+    app.add_handler(CallbackQueryHandler(refresh_station, pattern=r"^refresh_\d+$"))
 
     print("🪂 Telegram bot started...")
 
