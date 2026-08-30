@@ -1,5 +1,5 @@
-import sys
 from __future__ import annotations
+import sys
 import httpx
 from datetime import datetime
 import unicodedata
