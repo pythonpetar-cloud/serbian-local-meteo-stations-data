@@ -63,7 +63,7 @@ async def start(
                 await update.message.reply_text(
                     "❌ Could not retrieve weather data.\n"
                     "      Station is not available.😕\n\n"
-                    f"<code>*{e}</code>",
+                    "⚠︎ Battery or SIM out of function!🪫",
                     parse_mode="HTML",
                 )
                 return
@@ -128,7 +128,7 @@ async def station(
         await update.message.reply_text(
             "❌ Could not retrieve weather data.\n"
             "      Station is not available.😕\n\n"
-            f"<code>*{e}</code>",
+            "Battery or SIM out of function!🪫",
             parse_mode="HTML",
         )
 
@@ -152,7 +152,7 @@ async def rajac(
         await update.message.reply_text(
             "❌ Could not retrieve Rajac data.\n"
             "      Station is not available.😕\n\n"
-            f"<code>*{e}</code>",
+            "Battery or SIM out of function!🪫",
             parse_mode="HTML",
         )
 
@@ -196,7 +196,8 @@ async def refresh_station(
     except Exception as e:
         # Message body stays as-is if the refresh fails -- just show a
         # transient alert rather than replacing good data with an error.
-        await query.answer(f"Could not refresh: {e}", show_alert=True)
+        await query.answer(f"Wait for a bot to set up! ⚙️🛠️\n"
+                            "You can refresh in 20 seconds!️", show_alert=True)
 
 
 async def station_list(
