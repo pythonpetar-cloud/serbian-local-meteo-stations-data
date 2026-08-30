@@ -1,7 +1,10 @@
+import sys
+from __future__ import annotations
 import httpx
 from datetime import datetime
-
 import unicodedata
+
+print(sys.version)
 
 
 def format_time(value) -> str:
